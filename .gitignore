@@ -1,0 +1,105 @@
+# =====================
+# 🔨 Сборка (CMake + MSVC)
+# =====================
+build/
+Build/
+out/
+Debug/
+Release/
+RelWithDebInfo/
+MinSizeRel/
+*.sln
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.VC.db
+*.opensdf
+*.opendb
+*.sdf
+*.layout
+*.pidb
+*.pdb
+*.ilk
+*.exp
+*.map
+*.lib
+*.obj
+*.exe
+*.dll
+*.res
+*.tlog
+*.lastbuildstate
+ipch/
+*.aps
+*.ncb
+*.opt
+*.plg
+
+# =====================
+# 📦 Зависимости (vcpkg)
+# =====================
+# Если используете classic mode — vcpkg установлен глобально, ничего не игнорируем
+# Если manifest mode — игнорируем установленные пакеты:
+vcpkg_installed/
+!vcpkg.json
+
+# =====================
+# 🖥️ VS Code
+# =====================
+.vscode/*
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/c_cpp_properties.json
+!.vscode/settings.json
+# Локальные расширения и кэш
+.vscode/*.code-workspace
+.vscode/.history/
+
+# =====================
+# 🪟 Windows
+# =====================
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# =====================
+# 🔧 Компилятор/линкер
+# =====================
+*.pch
+*.pdb
+*.idb
+*.iobj
+*.ipdb
+
+# =====================
+# 🧹 Прочее
+# =====================
+# Временные файлы редакторов
+*~
+*.swp
+*.swo
+*.bak
+*.tmp
+*.temp
+
+# Логи и кэш
+*.log
+.cache/
+.DS_Store
+
+# Модели/ресурсы (опционально — если большие)
+# assets/*.m3d
+# assets/textures/*.png
+
+# =====================
+# ✅ Что ОБЯЗАТЕЛЬНО хранить в репозитории:
+# =====================
+# ✔️ src/*.cpp, src/*.h
+# ✔️ CMakeLists.txt
+# ✔️ vcpkg.json (если manifest mode)
+# ✔️ .vscode/tasks.json, launch.json (настройки отладки)
+# ✔️ shaders/, assets/ (если не слишком большие)
+# ✔️ Этот .gitignore 😊
