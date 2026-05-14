@@ -1,0 +1,10 @@
+^C:\USERS\USER\DOCUMENTS\CUBE_PROJ\BUILD\CMAKEFILES\3F948CC96F787124746F1C86ADB8D600\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/user/Documents/cube_proj -BC:/Users/user/Documents/cube_proj/build --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file C:/Users/user/Documents/cube_proj/build/cub.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
