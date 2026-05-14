@@ -1,13 +1,10 @@
-#define IMGUI_IMPL_OPENGL_LOADER_GLAD
 
+#define IMGUI_IMPL_OPENGL_LOADER_GLAD
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <imgui.h>
-
 #include "imgui_backends/imgui_impl_glfw.h"
-
 #include "imgui_backends/imgui_impl_opengl3.h"
-
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -15,40 +12,40 @@
 
 // ==================== МИНИ-ШЕЙДЕРЫ ====================
 const char* vertexShaderSource = R"(
-    #version 330 core
-    layout (location = 0) in vec3 aPos;
-    layout (location = 1) in vec3 aNormal;
-    uniform mat4 model;
-    uniform mat4 view;
-    uniform mat4 projection;
-    out vec3 FragPos;
-    out vec3 Normal;
-    void main() {
-        FragPos = vec3(model * vec4(aPos, 1.0));
-        Normal = mat3(transpose(inverse(model))) * aNormal;
-        gl_Position = projection * view * vec4(FragPos, 1.0);
-    }
+#version 330 core
+layout (location = 0) in vec3 aPos;
+layout (location = 1) in vec3 aNormal;
+uniform mat4 model;
+uniform mat4 view;
+uniform mat4 projection;
+out vec3 FragPos;
+out vec3 Normal;
+void main() {
+    FragPos = vec3(model * vec4(aPos, 1.0));
+    Normal = mat3(transpose(inverse(model))) * aNormal;
+    gl_Position = projection * view * vec4(FragPos, 1.0);
+}
 )";
 
 const char* fragmentShaderSource = R"(
-    #version 330 core
-    in vec3 FragPos;
-    in vec3 Normal;
-    out vec4 FragColor;
-    uniform vec3 lightPos = vec3(2.0, 3.0, 4.0);
-    uniform vec3 viewPos;
-    void main() {
-        vec3 norm = normalize(Normal);
-        vec3 lightDir = normalize(lightPos - FragPos);
-        float diff = max(dot(norm, lightDir), 0.0);
-        vec3 ambient = vec3(0.15);
-        vec3 diffuse = diff * vec3(0.7, 0.8, 1.0);
-        vec3 viewDir = normalize(viewPos - FragPos);
-        vec3 reflectDir = reflect(-lightDir, norm);
-        float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32.0);
-        vec3 specular = spec * vec3(0.3);
-        FragColor = vec4((ambient + diffuse + specular) * vec3(0.4, 0.65, 0.85), 1.0);
-    }
+#version 330 core
+in vec3 FragPos;
+in vec3 Normal;
+out vec4 FragColor;
+uniform vec3 lightPos = vec3(2.0, 3.0, 4.0);
+uniform vec3 viewPos;
+void main() {
+    vec3 norm = normalize(Normal);
+    vec3 lightDir = normalize(lightPos - FragPos);
+    float diff = max(dot(norm, lightDir), 0.0);
+    vec3 ambient = vec3(0.15);
+    vec3 diffuse = diff * vec3(0.7, 0.8, 1.0);
+    vec3 viewDir = normalize(viewPos - FragPos);
+    vec3 reflectDir = reflect(-lightDir, norm);
+    float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32.0);
+    vec3 specular = spec * vec3(0.3);
+    FragColor = vec4((ambient + diffuse + specular) * vec3(0.4, 0.65, 0.85), 1.0);
+}
 )";
 
 // ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
@@ -84,16 +81,59 @@ struct Camera {
     float distance = 5.0f;
     float yaw = 45.0f;
     float pitch = 20.0f;
-    
+
     glm::mat4 getView() const {
         float r = distance;
         float camX = target.x + r * cos(glm::radians(yaw)) * cos(glm::radians(pitch));
         float camY = target.y + r * sin(glm::radians(pitch));
         float camZ = target.z + r * sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-        return glm::lookAt(glm::vec3(camX, camY, camZ), target, glm::vec3(0,1,0));
+        return glm::lookAt(glm::vec3(camX, camY, camZ), target, glm::vec3(0, 1, 0));
     }
-    glm::vec3 getPos() const { return getView() * glm::vec4(0,0,1,1); } // упрощённо для viewPos
+
+    glm::vec3 getPos() const { 
+        return target + glm::vec3(
+            distance * cos(glm::radians(yaw)) * cos(glm::radians(pitch)),
+            distance * sin(glm::radians(pitch)),
+            distance * sin(glm::radians(yaw)) * cos(glm::radians(pitch))
+        ); 
+    }
 };
+
+// ==================== СОСТОЯНИЕ ВВОДА (для колбэков) ====================
+struct InputState {
+    Camera cam;
+    double lastX = 0.0;
+    double lastY = 0.0;
+    bool firstMouse = true;
+};
+
+// Обычные C-функции (не лямбды!), совместимые с GLFW
+void cursor_callback(GLFWwindow* window, double xpos, double ypos) {
+    auto* state = static_cast<InputState*>(glfwGetWindowUserPointer(window));
+    if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+        if (state->firstMouse) {
+            state->lastX = xpos;
+            state->lastY = ypos;
+            state->firstMouse = false;
+        }
+        float dx = static_cast<float>(xpos - state->lastX);
+        float dy = static_cast<float>(ypos - state->lastY);
+        state->cam.yaw   += dx * 0.5f;
+        state->cam.pitch += dy * 0.5f;
+        state->cam.pitch  = glm::clamp(state->cam.pitch, -89.0f, 89.0f);
+        state->lastX = xpos;
+        state->lastY = ypos;
+    } else {
+        state->firstMouse = true;
+    }
+}
+
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
+    auto* state = static_cast<InputState*>(glfwGetWindowUserPointer(window));
+    state->cam.distance -= static_cast<float>(yoffset) * 0.5f;
+    state->cam.distance  = glm::clamp(state->cam.distance, 1.0f, 50.0f);
+    IM_UNUSED(xoffset);
+}
 
 // ==================== ГЛАВНАЯ ФУНКЦИЯ ====================
 int main() {
@@ -107,46 +147,40 @@ int main() {
     glfwMakeContextCurrent(window);
     glfwSetInputMode(window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);
 
+    // 1. Привязываем состояние к окну ПЕРЕД установкой колбэков
+    InputState input;
+    glfwSetWindowUserPointer(window, &input);
+    glfwSetCursorPosCallback(window, cursor_callback);
+    glfwSetScrollCallback(window, scroll_callback);
+
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) return -1;
 
-    // === Инициализация ImGui ===
+    // 2. Инициализация ImGui
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGui::StyleColorsDark();
-    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    // install_callbacks=false, так как мы уже установили свои колбэки вручную
+    ImGui_ImplGlfw_InitForOpenGL(window, false); 
     ImGui_ImplOpenGL3_Init("#version 330 core");
 
-    // === Шейдеры ===
+    // 3. Шейдеры
     unsigned int shaderProg = createProgram(vertexShaderSource, fragmentShaderSource);
     glUseProgram(shaderProg);
 
-    // === Куб (VAO/VBO/EBO) ===
+    // 4. Куб (VAO/VBO/EBO)
     float vertices[] = {
-        // pos              // normal
-        -0.5f,-0.5f,-0.5f,  0.0f, 0.0f,-1.0f,
-         0.5f,-0.5f,-0.5f,  0.0f, 0.0f,-1.0f,
-         0.5f, 0.5f,-0.5f,  0.0f, 0.0f,-1.0f,
-        -0.5f, 0.5f,-0.5f,  0.0f, 0.0f,-1.0f,
-        -0.5f,-0.5f, 0.5f,  0.0f, 0.0f, 1.0f,
-         0.5f,-0.5f, 0.5f,  0.0f, 0.0f, 1.0f,
-         0.5f, 0.5f, 0.5f,  0.0f, 0.0f, 1.0f,
-        -0.5f, 0.5f, 0.5f,  0.0f, 0.0f, 1.0f,
-        -0.5f, 0.5f, 0.5f, -1.0f, 0.0f, 0.0f,
-        -0.5f, 0.5f,-0.5f, -1.0f, 0.0f, 0.0f,
-        -0.5f,-0.5f,-0.5f, -1.0f, 0.0f, 0.0f,
-        -0.5f,-0.5f, 0.5f, -1.0f, 0.0f, 0.0f,
-         0.5f, 0.5f, 0.5f,  1.0f, 0.0f, 0.0f,
-         0.5f, 0.5f,-0.5f,  1.0f, 0.0f, 0.0f,
-         0.5f,-0.5f,-0.5f,  1.0f, 0.0f, 0.0f,
-         0.5f,-0.5f, 0.5f,  1.0f, 0.0f, 0.0f,
-        -0.5f,-0.5f,-0.5f,  0.0f,-1.0f, 0.0f,
-         0.5f,-0.5f,-0.5f,  0.0f,-1.0f, 0.0f,
-         0.5f,-0.5f, 0.5f,  0.0f,-1.0f, 0.0f,
-        -0.5f,-0.5f, 0.5f,  0.0f,-1.0f, 0.0f,
-        -0.5f, 0.5f,-0.5f,  0.0f, 1.0f, 0.0f,
-         0.5f, 0.5f,-0.5f,  0.0f, 1.0f, 0.0f,
-         0.5f, 0.5f, 0.5f,  0.0f, 1.0f, 0.0f,
-        -0.5f, 0.5f, 0.5f,  0.0f, 1.0f, 0.0f
+        -0.5f,-0.5f,-0.5f,  0.0f, 0.0f,-1.0f,  0.5f,-0.5f,-0.5f,  0.0f, 0.0f,-1.0f,
+         0.5f, 0.5f,-0.5f,  0.0f, 0.0f,-1.0f, -0.5f, 0.5f,-0.5f,  0.0f, 0.0f,-1.0f,
+        -0.5f,-0.5f, 0.5f,  0.0f, 0.0f, 1.0f,  0.5f,-0.5f, 0.5f,  0.0f, 0.0f, 1.0f,
+         0.5f, 0.5f, 0.5f,  0.0f, 0.0f, 1.0f, -0.5f, 0.5f, 0.5f,  0.0f, 0.0f, 1.0f,
+        -0.5f, 0.5f, 0.5f, -1.0f, 0.0f, 0.0f, -0.5f, 0.5f,-0.5f, -1.0f, 0.0f, 0.0f,
+        -0.5f,-0.5f,-0.5f, -1.0f, 0.0f, 0.0f, -0.5f,-0.5f, 0.5f, -1.0f, 0.0f, 0.0f,
+         0.5f, 0.5f, 0.5f,  1.0f, 0.0f, 0.0f,  0.5f, 0.5f,-0.5f,  1.0f, 0.0f, 0.0f,
+         0.5f,-0.5f,-0.5f,  1.0f, 0.0f, 0.0f,  0.5f,-0.5f, 0.5f,  1.0f, 0.0f, 0.0f,
+        -0.5f,-0.5f,-0.5f,  0.0f,-1.0f, 0.0f,  0.5f,-0.5f,-0.5f,  0.0f,-1.0f, 0.0f,
+         0.5f,-0.5f, 0.5f,  0.0f,-1.0f, 0.0f, -0.5f,-0.5f, 0.5f,  0.0f,-1.0f, 0.0f,
+        -0.5f, 0.5f,-0.5f,  0.0f, 1.0f, 0.0f,  0.5f, 0.5f,-0.5f,  0.0f, 1.0f, 0.0f,
+         0.5f, 0.5f, 0.5f,  0.0f, 1.0f, 0.0f, -0.5f, 0.5f, 0.5f,  0.0f, 1.0f, 0.0f
     };
     unsigned int indices[] = {
         0,1,2, 2,3,0,  4,5,6, 6,7,4,  8,9,10, 10,11,8,
@@ -169,31 +203,7 @@ int main() {
 
     glEnable(GL_DEPTH_TEST);
 
-    // === Обработка мыши для камеры ===
-    Camera cam;
-    double lastX = 0, lastY = 0;
-    bool firstMouse = true;
-
-    glfwSetCursorPosCallback(window, [&](GLFWwindow*, double xpos, double ypos) {
-        if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-            if (firstMouse) { lastX = xpos; lastY = ypos; firstMouse = false; }
-            float dx = static_cast<float>(xpos) - static_cast<float>(lastX);
-            float dy = static_cast<float>(ypos) - static_cast<float>(lastY);
-            cam.yaw   += dx * 0.5f;
-            cam.pitch += dy * 0.5f;
-            cam.pitch  = glm::clamp(cam.pitch, -89.0f, 89.0f);
-            lastX = xpos; lastY = ypos;
-        } else {
-            firstMouse = true;
-        }
-    });
-
-    glfwSetScrollCallback(window, [&](GLFWwindow*, double xoffset, double yoffset) {
-        cam.distance -= static_cast<float>(yoffset) * 0.5f;
-        cam.distance = glm::clamp(cam.distance, 1.0f, 50.0f);
-    });
-
-    // === Цикл рендера ===
+    // ==================== ЦИКЛ РЕНДЕРА ====================
     while (!glfwWindowShouldClose(window)) {
         // 1. ImGui
         ImGui_ImplOpenGL3_NewFrame();
@@ -202,11 +212,11 @@ int main() {
 
         ImGui::Begin("Viewer Controls");
         ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
-        ImGui::SliderFloat("Distance", &cam.distance, 1.0f, 20.0f);
-        ImGui::SliderFloat("Yaw", &cam.yaw, 0.0f, 360.0f);
-        ImGui::SliderFloat("Pitch", &cam.pitch, -89.0f, 89.0f);
+        ImGui::SliderFloat("Distance", &input.cam.distance, 1.0f, 20.0f);
+        ImGui::SliderFloat("Yaw", &input.cam.yaw, 0.0f, 360.0f);
+        ImGui::SliderFloat("Pitch", &input.cam.pitch, -89.0f, 89.0f);
         if (ImGui::Button("Reset Camera")) {
-            cam.distance = 5.0f; cam.yaw = 45.0f; cam.pitch = 20.0f;
+            input.cam.distance = 5.0f; input.cam.yaw = 45.0f; input.cam.pitch = 20.0f;
         }
         ImGui::End();
 
@@ -217,16 +227,14 @@ int main() {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glUseProgram(shaderProg);
-        glm::mat4 view = cam.getView();
+        glm::mat4 view = input.cam.getView();
         glm::mat4 proj = glm::perspective(glm::radians(45.0f), 1280.0f/720.0f, 0.1f, 100.0f);
-        glm::mat4 model = glm::mat4(1.0f); // Здесь потом будет загрузка .m3d
+        glm::mat4 model = glm::mat4(1.0f);
 
         glUniformMatrix4fv(glGetUniformLocation(shaderProg, "view"), 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(glGetUniformLocation(shaderProg, "projection"), 1, GL_FALSE, glm::value_ptr(proj));
         glUniformMatrix4fv(glGetUniformLocation(shaderProg, "model"), 1, GL_FALSE, glm::value_ptr(model));
-        glUniform3fv(glGetUniformLocation(shaderProg, "viewPos"), 1, glm::value_ptr(glm::vec3(cam.distance * sin(glm::radians(cam.yaw)) * cos(glm::radians(cam.pitch)),
-                                                                                                cam.distance * sin(glm::radians(cam.pitch)),
-                                                                                                cam.distance * cos(glm::radians(cam.yaw)) * cos(glm::radians(cam.pitch)))));
+        glUniform3fv(glGetUniformLocation(shaderProg, "viewPos"), 1, glm::value_ptr(input.cam.getPos()));
 
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
