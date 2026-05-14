@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-# 🔥 ВАЖНО: Тулчейн vcpkg ДО project()
+# ..надо заменить на сист. переменную
 set(CMAKE_TOOLCHAIN_FILE "C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/vcpkg/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
 
 
@@ -18,7 +18,9 @@ find_package(assimp CONFIG REQUIRED)
 
 # Сборка исполняемого файла
 file(GLOB_RECURSE SOURCES "src/*.cpp")
-add_executable(${PROJECT_NAME} ${SOURCES})
+add_executable(${PROJECT_NAME} ${SOURCES}
+    src/imgui_backends/imgui_impl_glfw.cpp
+    src/imgui_backends/imgui_impl_opengl3_loader.h)
 
 # Линковка
 target_link_libraries(${PROJECT_NAME} PRIVATE
