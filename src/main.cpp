@@ -72,7 +72,7 @@ int main() {
     unsigned int shader = createProgram(vertexShaderSource, fragmentShaderSource);
     glUseProgram(shader);
 
-    Model model("assets/model.stl"); // Положите файл сюда
+    Model model("assets/model2.stl"); // Положите файл сюда
 
     // 🔥 Фиксированная изометрическая проекция
     glm::mat4 projection = glm::perspective(glm::radians(45.0f), 1280.0f / 720.0f, 0.1f, 100.0f);
