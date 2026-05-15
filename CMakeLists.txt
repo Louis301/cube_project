@@ -20,7 +20,8 @@ find_package(assimp CONFIG REQUIRED)
 file(GLOB_RECURSE SOURCES "src/*.cpp")
 add_executable(${PROJECT_NAME} ${SOURCES}
     src/imgui_backends/imgui_impl_glfw.cpp
-    src/imgui_backends/imgui_impl_opengl3_loader.h)
+    src/imgui_backends/imgui_impl_opengl3_loader.h
+    src/Model.cpp)
 
 # Линковка
 target_link_libraries(${PROJECT_NAME} PRIVATE

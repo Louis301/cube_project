@@ -1,4 +1,3 @@
-
 #define IMGUI_IMPL_OPENGL_LOADER_GLAD
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -9,28 +8,24 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <iostream>
+#include "Model.h"
 
-// ==================== МИНИ-ШЕЙДЕРЫ ====================
+// ==================== ШЕЙДЕРЫ ====================
 const char* vertexShaderSource = R"(
 #version 330 core
 layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec3 aNormal;
-uniform mat4 model;
-uniform mat4 view;
-uniform mat4 projection;
-out vec3 FragPos;
-out vec3 Normal;
+uniform mat4 model; uniform mat4 view; uniform mat4 projection;
+out vec3 FragPos; out vec3 Normal;
 void main() {
     FragPos = vec3(model * vec4(aPos, 1.0));
     Normal = mat3(transpose(inverse(model))) * aNormal;
     gl_Position = projection * view * vec4(FragPos, 1.0);
-}
-)";
+})";
 
 const char* fragmentShaderSource = R"(
 #version 330 core
-in vec3 FragPos;
-in vec3 Normal;
+in vec3 FragPos; in vec3 Normal;
 out vec4 FragColor;
 uniform vec3 lightPos = vec3(2.0, 3.0, 4.0);
 uniform vec3 viewPos;
@@ -43,215 +38,158 @@ void main() {
     vec3 viewDir = normalize(viewPos - FragPos);
     vec3 reflectDir = reflect(-lightDir, norm);
     float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32.0);
-    vec3 specular = spec * vec3(0.3);
-    FragColor = vec4((ambient + diffuse + specular) * vec3(0.4, 0.65, 0.85), 1.0);
-}
-)";
+    FragColor = vec4((ambient + diffuse + spec * vec3(0.3)) * vec3(0.4, 0.65, 0.85), 1.0);
+})";
 
-// ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
-unsigned int compileShader(unsigned int type, const char* source) {
-    unsigned int id = glCreateShader(type);
-    glShaderSource(id, 1, &source, nullptr);
-    glCompileShader(id);
-    int success;
-    char infoLog[512];
-    glGetShaderiv(id, GL_COMPILE_STATUS, &success);
-    if (!success) {
-        glGetShaderInfoLog(id, 512, nullptr, infoLog);
-        std::cerr << "SHADER COMPILE ERROR:\n" << infoLog << std::endl;
-    }
-    return id;
-}
-
-unsigned int createProgram(const char* vertex, const char* fragment) {
-    unsigned int vs = compileShader(GL_VERTEX_SHADER, vertex);
-    unsigned int fs = compileShader(GL_FRAGMENT_SHADER, fragment);
-    unsigned int prog = glCreateProgram();
-    glAttachShader(prog, vs);
-    glAttachShader(prog, fs);
-    glLinkProgram(prog);
-    glDeleteShader(vs);
-    glDeleteShader(fs);
-    return prog;
-}
-
-// ==================== КАМЕРА ====================
+// ==================== КАМЕРА И ВВОД ====================
 struct Camera {
     glm::vec3 target = glm::vec3(0.0f);
-    float distance = 5.0f;
-    float yaw = 45.0f;
-    float pitch = 20.0f;
+    float distance = 3.0f;
+    float yaw = 45.0f, pitch = 20.0f;
 
     glm::mat4 getView() const {
-        float r = distance;
-        float camX = target.x + r * cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-        float camY = target.y + r * sin(glm::radians(pitch));
-        float camZ = target.z + r * sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-        return glm::lookAt(glm::vec3(camX, camY, camZ), target, glm::vec3(0, 1, 0));
+        return glm::lookAt(
+            target + glm::vec3(
+                distance * cos(glm::radians(yaw)) * cos(glm::radians(pitch)),
+                distance * sin(glm::radians(pitch)),
+                distance * sin(glm::radians(yaw)) * cos(glm::radians(pitch))
+            ), target, glm::vec3(0, 1, 0)
+        );
     }
-
-    glm::vec3 getPos() const { 
+    glm::vec3 getPos() const {
         return target + glm::vec3(
             distance * cos(glm::radians(yaw)) * cos(glm::radians(pitch)),
             distance * sin(glm::radians(pitch)),
             distance * sin(glm::radians(yaw)) * cos(glm::radians(pitch))
-        ); 
+        );
     }
 };
 
-// ==================== СОСТОЯНИЕ ВВОДА (для колбэков) ====================
 struct InputState {
     Camera cam;
-    double lastX = 0.0;
-    double lastY = 0.0;
+    double lastX = 0, lastY = 0;
     bool firstMouse = true;
 };
 
-// Обычные C-функции (не лямбды!), совместимые с GLFW
-void cursor_callback(GLFWwindow* window, double xpos, double ypos) {
+// 🔥 Callback-функции (не лямбды!)
+void cursor_cb(GLFWwindow* window, double xpos, double ypos) {
     auto* state = static_cast<InputState*>(glfwGetWindowUserPointer(window));
+    
+    // 1. Логика камеры
     if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
         if (state->firstMouse) {
-            state->lastX = xpos;
-            state->lastY = ypos;
-            state->firstMouse = false;
+            state->lastX = xpos; state->lastY = ypos; state->firstMouse = false;
         }
         float dx = static_cast<float>(xpos - state->lastX);
         float dy = static_cast<float>(ypos - state->lastY);
-        state->cam.yaw   += dx * 0.5f;
-        state->cam.pitch += dy * 0.5f;
-        state->cam.pitch  = glm::clamp(state->cam.pitch, -89.0f, 89.0f);
-        state->lastX = xpos;
-        state->lastY = ypos;
+        state->cam.yaw += dx * 0.3f;
+        state->cam.pitch += dy * 0.3f;
+        state->cam.pitch = glm::clamp(state->cam.pitch, -89.0f, 89.0f);
+        state->lastX = xpos; state->lastY = ypos;
     } else {
         state->firstMouse = true;
     }
+
+    // 2. Передача событий в ImGui (чтобы работали слайдеры)
+    ImGui_ImplGlfw_CursorPosCallback(window, xpos, ypos);
 }
 
-void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
+void scroll_cb(GLFWwindow* window, double, double yoffset) {
     auto* state = static_cast<InputState*>(glfwGetWindowUserPointer(window));
     state->cam.distance -= static_cast<float>(yoffset) * 0.5f;
-    state->cam.distance  = glm::clamp(state->cam.distance, 1.0f, 50.0f);
-    IM_UNUSED(xoffset);
+    state->cam.distance = glm::clamp(state->cam.distance, 0.5f, 50.0f);
+    
+    // Передача событий в ImGui
+    ImGui_ImplGlfw_ScrollCallback(window, 0.0, yoffset);
 }
 
-// ==================== ГЛАВНАЯ ФУНКЦИЯ ====================
+// ==================== ВСПОМОГАТЕЛЬНЫЕ ====================
+unsigned int compileShader(unsigned int type, const char* src) {
+    unsigned int id = glCreateShader(type);
+    glShaderSource(id, 1, &src, nullptr); glCompileShader(id);
+    int s; char l[512]; glGetShaderiv(id, GL_COMPILE_STATUS, &s);
+    if (!s) { glGetShaderInfoLog(id, 512, nullptr, l); std::cerr << "Shader Error: " << l << '\n'; }
+    return id;
+}
+unsigned int createProgram(const char* v, const char* f) {
+    unsigned int p = glCreateProgram();
+    glAttachShader(p, compileShader(GL_VERTEX_SHADER, v));
+    glAttachShader(p, compileShader(GL_FRAGMENT_SHADER, f));
+    glLinkProgram(p); return p;
+}
+
+// ==================== MAIN ====================
 int main() {
     if (!glfwInit()) return -1;
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow* window = glfwCreateWindow(1280, 720, "M3D Viewer", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(1280, 720, "STL Viewer", nullptr, nullptr);
     if (!window) return -1;
     glfwMakeContextCurrent(window);
-    glfwSetInputMode(window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);
-
-    // 1. Привязываем состояние к окну ПЕРЕД установкой колбэков
-    InputState input;
-    glfwSetWindowUserPointer(window, &input);
-    glfwSetCursorPosCallback(window, cursor_callback);
-    glfwSetScrollCallback(window, scroll_callback);
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) return -1;
 
-    // 2. Инициализация ImGui
+    // 1. Привязка состояния ДО установки колбэков
+    InputState input;
+    glfwSetWindowUserPointer(window, &input);
+    glfwSetCursorPosCallback(window, cursor_cb);
+    glfwSetScrollCallback(window, scroll_cb);
+
+    // 2. ImGui (install_callbacks=false, так как мы сами обрабатываем ввод)
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGui::StyleColorsDark();
-    // install_callbacks=false, так как мы уже установили свои колбэки вручную
-    ImGui_ImplGlfw_InitForOpenGL(window, false); 
+    ImGui_ImplGlfw_InitForOpenGL(window, false); // false = не ставить свои колбэки
     ImGui_ImplOpenGL3_Init("#version 330 core");
 
     // 3. Шейдеры
-    unsigned int shaderProg = createProgram(vertexShaderSource, fragmentShaderSource);
-    glUseProgram(shaderProg);
-
-    // 4. Куб (VAO/VBO/EBO)
-    float vertices[] = {
-        -0.5f,-0.5f,-0.5f,  0.0f, 0.0f,-1.0f,  0.5f,-0.5f,-0.5f,  0.0f, 0.0f,-1.0f,
-         0.5f, 0.5f,-0.5f,  0.0f, 0.0f,-1.0f, -0.5f, 0.5f,-0.5f,  0.0f, 0.0f,-1.0f,
-        -0.5f,-0.5f, 0.5f,  0.0f, 0.0f, 1.0f,  0.5f,-0.5f, 0.5f,  0.0f, 0.0f, 1.0f,
-         0.5f, 0.5f, 0.5f,  0.0f, 0.0f, 1.0f, -0.5f, 0.5f, 0.5f,  0.0f, 0.0f, 1.0f,
-        -0.5f, 0.5f, 0.5f, -1.0f, 0.0f, 0.0f, -0.5f, 0.5f,-0.5f, -1.0f, 0.0f, 0.0f,
-        -0.5f,-0.5f,-0.5f, -1.0f, 0.0f, 0.0f, -0.5f,-0.5f, 0.5f, -1.0f, 0.0f, 0.0f,
-         0.5f, 0.5f, 0.5f,  1.0f, 0.0f, 0.0f,  0.5f, 0.5f,-0.5f,  1.0f, 0.0f, 0.0f,
-         0.5f,-0.5f,-0.5f,  1.0f, 0.0f, 0.0f,  0.5f,-0.5f, 0.5f,  1.0f, 0.0f, 0.0f,
-        -0.5f,-0.5f,-0.5f,  0.0f,-1.0f, 0.0f,  0.5f,-0.5f,-0.5f,  0.0f,-1.0f, 0.0f,
-         0.5f,-0.5f, 0.5f,  0.0f,-1.0f, 0.0f, -0.5f,-0.5f, 0.5f,  0.0f,-1.0f, 0.0f,
-        -0.5f, 0.5f,-0.5f,  0.0f, 1.0f, 0.0f,  0.5f, 0.5f,-0.5f,  0.0f, 1.0f, 0.0f,
-         0.5f, 0.5f, 0.5f,  0.0f, 1.0f, 0.0f, -0.5f, 0.5f, 0.5f,  0.0f, 1.0f, 0.0f
-    };
-    unsigned int indices[] = {
-        0,1,2, 2,3,0,  4,5,6, 6,7,4,  8,9,10, 10,11,8,
-        12,13,14, 14,15,12,  16,17,18, 18,19,16,  20,21,22, 22,23,20
-    };
-
-    unsigned int VAO, VBO, EBO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    glGenBuffers(1, &EBO);
-    glBindVertexArray(VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
+    unsigned int shader = createProgram(vertexShaderSource, fragmentShaderSource);
+    
+    // 4. ЗАГРУЗКА МОДЕЛИ (убедитесь, что файл лежит в assets/)
+    // Если файла нет, программа запустится с пустым экраном
+    Model model("assets/model.stl"); 
 
     glEnable(GL_DEPTH_TEST);
 
-    // ==================== ЦИКЛ РЕНДЕРА ====================
     while (!glfwWindowShouldClose(window)) {
-        // 1. ImGui
+        // ImGui Loop
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        ImGui::Begin("Viewer Controls");
+        ImGui::Begin("Controls");
         ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
-        ImGui::SliderFloat("Distance", &input.cam.distance, 1.0f, 20.0f);
-        ImGui::SliderFloat("Yaw", &input.cam.yaw, 0.0f, 360.0f);
-        ImGui::SliderFloat("Pitch", &input.cam.pitch, -89.0f, 89.0f);
-        if (ImGui::Button("Reset Camera")) {
-            input.cam.distance = 5.0f; input.cam.yaw = 45.0f; input.cam.pitch = 20.0f;
+        ImGui::SliderFloat("Distance", &input.cam.distance, 0.5f, 50.0f);
+        if (ImGui::Button("Reset")) {
+            input.cam.distance = 3.0f; input.cam.yaw = 45.0f; input.cam.pitch = 20.0f;
         }
         ImGui::End();
 
         ImGui::Render();
 
-        // 2. Рендер OpenGL
+        // OpenGL Render
         glClearColor(0.12f, 0.15f, 0.2f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        glUseProgram(shaderProg);
         glm::mat4 view = input.cam.getView();
-        glm::mat4 proj = glm::perspective(glm::radians(45.0f), 1280.0f/720.0f, 0.1f, 100.0f);
-        glm::mat4 model = glm::mat4(1.0f);
+        glm::mat4 proj = glm::perspective(glm::radians(45.0f), 1280.0f / 720.0f, 0.1f, 100.0f);
+        glm::mat4 modelMat = glm::mat4(1.0f);
 
-        glUniformMatrix4fv(glGetUniformLocation(shaderProg, "view"), 1, GL_FALSE, glm::value_ptr(view));
-        glUniformMatrix4fv(glGetUniformLocation(shaderProg, "projection"), 1, GL_FALSE, glm::value_ptr(proj));
-        glUniformMatrix4fv(glGetUniformLocation(shaderProg, "model"), 1, GL_FALSE, glm::value_ptr(model));
-        glUniform3fv(glGetUniformLocation(shaderProg, "viewPos"), 1, glm::value_ptr(input.cam.getPos()));
+        glUniformMatrix4fv(glGetUniformLocation(shader, "view"), 1, GL_FALSE, glm::value_ptr(view));
+        glUniformMatrix4fv(glGetUniformLocation(shader, "projection"), 1, GL_FALSE, glm::value_ptr(proj));
+        glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(modelMat));
+        glUniform3fv(glGetUniformLocation(shader, "viewPos"), 1, glm::value_ptr(input.cam.getPos()));
 
-        glBindVertexArray(VAO);
-        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+        model.Draw(shader);
 
-        // 3. Отрисовка ImGui поверх
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
 
-    // Очистка
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteBuffers(1, &VBO);
-    glDeleteBuffers(1, &EBO);
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
+    ImGui_ImplOpenGL3_Shutdown(); ImGui_ImplGlfw_Shutdown(); ImGui::DestroyContext();
     glfwTerminate();
     return 0;
 }
