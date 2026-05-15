@@ -6,6 +6,10 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <iostream>
 #include "Model.h"
+#include <algorithm> // для std::clamp
+#include <imgui.h>
+#include "imgui_backends/imgui_impl_glfw.h"
+#include "imgui_backends/imgui_impl_opengl3.h"
 
 // ==================== ШЕЙДЕРЫ ====================
 const char* vertexShaderSource = R"(
@@ -57,6 +61,109 @@ unsigned int createProgram(const char* v, const char* f) {
     return p;
 }
 
+
+
+
+
+// ==================== КАМЕРА ====================
+struct Camera {
+    glm::vec3 target = glm::vec3(0.0f);
+    float distance = 4.0f;
+    float yaw = 45.0f, pitch = 20.0f;
+
+    glm::mat4 getView() const {
+        return glm::lookAt(
+            target + glm::vec3(
+                distance * cos(glm::radians(yaw)) * cos(glm::radians(pitch)),
+                distance * sin(glm::radians(pitch)),
+                distance * sin(glm::radians(yaw)) * cos(glm::radians(pitch))
+            ), target, glm::vec3(0, 1, 0)
+        );
+    }
+    glm::vec3 getPos() const {
+        return target + glm::vec3(
+            distance * cos(glm::radians(yaw)) * cos(glm::radians(pitch)),
+            distance * sin(glm::radians(pitch)),
+            distance * sin(glm::radians(yaw)) * cos(glm::radians(pitch))
+        );
+    }
+};
+
+// ==================== СОСТОЯНИЕ ВВОДА (InputState) ====================
+struct InputState { 
+	Camera cam; 
+	double lastX=0, lastY=0; 
+	bool firstMouse=true; 
+};
+
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
+	// 🔹 Игнорируем прокрутку, если курсор находится над окном ImGui
+	if (ImGui::GetIO().WantCaptureMouse) return;
+
+	auto* state = static_cast<InputState*>(glfwGetWindowUserPointer(window));
+	if (!state) return;
+
+	// yoffset > 0 → прокрутка вверх (приближение)
+	// yoffset < 0 → прокрутка вниз (отдаление)
+	state->cam.distance -= static_cast<float>(yoffset) * 0.5f;
+	
+	// 🔹 Ограничиваем диапазон, чтобы камера не "выворачивалась" и не улетала за модель
+	state->cam.distance = glm::clamp(state->cam.distance, 0.5f, 50.0f);
+}
+
+// ==================== CALLBACK-ФУНКЦИИ ====================
+void cursor_cb(GLFWwindow* window, double xpos, double ypos) {
+    // Передаём событие в ImGui
+    ImGui_ImplGlfw_CursorPosCallback(window, xpos, ypos);
+    
+    // Получаем указатель на наше состояние
+    auto* state = static_cast<InputState*>(glfwGetWindowUserPointer(window));
+    if (!state) return;
+
+    // Если курсор над UI, не вращаем камеру
+    if (ImGui::GetIO().WantCaptureMouse) return;
+
+    if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+        if (state->firstMouse) {
+            state->lastX = xpos; state->lastY = ypos; state->firstMouse = false;
+        }
+        float dx = static_cast<float>(xpos - state->lastX);
+        float dy = static_cast<float>(ypos - state->lastY);
+        state->cam.yaw += dx * 0.4f;
+        state->cam.pitch += dy * 0.4f;
+        state->cam.pitch = glm::clamp(state->cam.pitch, -89.0f, 89.0f);
+        state->lastX = xpos; state->lastY = ypos;
+    } else {
+        state->firstMouse = true;
+    }
+}
+
+// 🔥 Функция зума колёсиком мыши
+void scroll_cb(GLFWwindow* window, double, double yoffset) {
+    // Передаём событие в ImGui
+    ImGui_ImplGlfw_ScrollCallback(window, 0.0, yoffset);
+
+    auto* state = static_cast<InputState*>(glfwGetWindowUserPointer(window));
+    if (!state) return;
+
+    // Изменяем дистанцию камеры
+    state->cam.distance -= static_cast<float>(yoffset) * 0.5f;
+    // Ограничиваем диапазон, чтобы камера не "проваливалась" в модель
+    state->cam.distance = glm::clamp(state->cam.distance, 0.5f, 50.0f);
+}
+
+// void scroll_callback(GLFWwindow* window, double, double yoffset) {
+//     auto* state = static_cast<InputState*>(glfwGetWindowUserPointer(window));
+//     state->cam.distance -= static_cast<float>(yoffset) * 0.5f;
+    
+//     // 🔥 ИСПРАВЛЕНИЕ: std::clamp работает надёжнее и не зависит от GLM
+//     state->cam.distance = std::clamp(state->cam.distance, 0.5f, 50.0f);
+    
+//     ImGui_ImplGlfw_ScrollCallback(window, 0.0, yoffset);
+// }
+
+
+// ======================================
 int main() {
     if (!glfwInit()) return -1;
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -67,38 +174,102 @@ int main() {
     if (!window) return -1;
     glfwMakeContextCurrent(window);
 
+		// Важно для glfwGetMouseButton
+    glfwSetInputMode(window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);
+
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) return -1;
+
+
+  // 1. Создаём состояние и привязываем его к окну
+	InputState input;
+	glfwSetWindowUserPointer(window, &input);
+
+  // 2. Регистрируем callback-функции
+	glfwSetCursorPosCallback(window, cursor_cb);
+	glfwSetScrollCallback(window, scroll_cb); // 🔥 Регистрация зума
+
+  // 3. ImGui (install_callbacks=false, так как мы сами обрабатываем ввод)
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGui::StyleColorsDark();
+	ImGui_ImplGlfw_InitForOpenGL(window, false);
+	ImGui_ImplOpenGL3_Init("#version 330 core");
+
 
     unsigned int shader = createProgram(vertexShaderSource, fragmentShaderSource);
     glUseProgram(shader);
 
-    Model model("assets/model2.stl"); // Положите файл сюда
+    Model model("assets/model4.stl"); // Положите файл сюда
 
-    // 🔥 Фиксированная изометрическая проекция
-    glm::mat4 projection = glm::perspective(glm::radians(45.0f), 1280.0f / 720.0f, 0.1f, 100.0f);
-    glm::mat4 view = glm::lookAt(
-        glm::vec3(3.0f, 2.5f, 3.0f), // Позиция камеры (изометрический угол)
-        glm::vec3(0.0f, 0.0f, 0.0f), // Центр сцены
-        glm::vec3(0.0f, 1.0f, 0.0f)  // Вектор вверх
-    );
-    glm::mat4 modelMat = glm::mat4(1.0f);
 
-    glUniformMatrix4fv(glGetUniformLocation(shader, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-    glUniformMatrix4fv(glGetUniformLocation(shader, "view"), 1, GL_FALSE, glm::value_ptr(view));
-    glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(modelMat));
-
-    glEnable(GL_DEPTH_TEST);
-    glDisable(GL_CULL_FACE); // STL часто имеет смешанный winding order
+		glEnable(GL_DEPTH_TEST);
+    glDisable(GL_CULL_FACE);
 
     while (!glfwWindowShouldClose(window)) {
-        glClearColor(0.12f, 0.15f, 0.20f, 1.0f);
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        // ImGui::Begin("Controls");
+        // ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
+        // ImGui::SliderFloat("Distance", &input.cam.distance, 0.5f, 20.0f);
+        // if (ImGui::Button("Reset")) {
+        //     input.cam.distance = 4.0f; input.cam.yaw = 45.0f; input.cam.pitch = 20.0f;
+        // }
+        // ImGui::End();
+        ImGui::Render();
+
+        glClearColor(0.12f, 0.15f, 0.2f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        model.Draw();
+        glm::mat4 view = input.cam.getView();
+        glm::mat4 proj = glm::perspective(glm::radians(45.0f), 1280.0f / 720.0f, 0.1f, 100.0f);
+        glm::mat4 modelMat = glm::mat4(1.0f);
+
+        glUniformMatrix4fv(glGetUniformLocation(shader, "view"), 1, GL_FALSE, glm::value_ptr(view));
+        glUniformMatrix4fv(glGetUniformLocation(shader, "projection"), 1, GL_FALSE, glm::value_ptr(proj));
+        glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(modelMat));
+        glUniform3fv(glGetUniformLocation(shader, "viewPos"), 1, glm::value_ptr(input.cam.getPos()));
+
+        // model.Draw(shader);
+				       model.Draw();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
+
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+
+
+    // // Фиксированная изометрическая проекция
+    // glm::mat4 projection = glm::perspective(glm::radians(45.0f), 1280.0f / 720.0f, 0.1f, 100.0f);
+    // glm::mat4 view = glm::lookAt(
+    //     glm::vec3(3.0f, 2.5f, 3.0f), // Позиция камеры (изометрический угол)
+    //     glm::vec3(0.0f, 0.0f, 0.0f), // Центр сцены
+    //     glm::vec3(0.0f, 1.0f, 0.0f)  // Вектор вверх
+    // );
+    // glm::mat4 modelMat = glm::mat4(1.0f);
+
+    // glUniformMatrix4fv(glGetUniformLocation(shader, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+    // glUniformMatrix4fv(glGetUniformLocation(shader, "view"), 1, GL_FALSE, glm::value_ptr(view));
+    // glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(modelMat));
+
+    // glEnable(GL_DEPTH_TEST);
+    // glDisable(GL_CULL_FACE); // STL часто имеет смешанный winding order
+
+    // while (!glfwWindowShouldClose(window)) {
+    //     glClearColor(0.12f, 0.15f, 0.20f, 1.0f);
+    //     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    //     model.Draw();
+
+    //     glfwSwapBuffers(window);
+    //     glfwPollEvents();
+    // }
+
 
     glfwTerminate();
     return 0;
