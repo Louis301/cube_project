@@ -7,7 +7,6 @@
 #include <string>
 #include <vector>
 
-// Структура вершины (позиция + нормаль)
 struct Vertex {
     glm::vec3 Position;
     glm::vec3 Normal;
@@ -21,8 +20,8 @@ public:
 
 private:
     void loadModel(const std::string& path);
-    void setupMesh();
     void processMesh(aiMesh* mesh);
+    void setupBuffers();
 
     unsigned int VAO = 0, VBO = 0, EBO = 0;
     unsigned int numIndices = 0;
