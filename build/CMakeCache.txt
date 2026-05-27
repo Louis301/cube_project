@@ -100,7 +100,7 @@ CMAKE_PROJECT_DESCRIPTION:STATIC=
 CMAKE_PROJECT_HOMEPAGE_URL:STATIC=
 
 //Value Computed by CMake
-CMAKE_PROJECT_NAME:STATIC=cub
+CMAKE_PROJECT_NAME:STATIC=cube
 
 //Value Computed by CMake
 CMAKE_PROJECT_SPDX_LICENSE:STATIC=
@@ -258,6 +258,15 @@ cub_IS_TOP_LEVEL:STATIC=ON
 
 //Value Computed by CMake
 cub_SOURCE_DIR:STATIC=C:/Users/user/Documents/cube_proj
+
+//Value Computed by CMake
+cube_BINARY_DIR:STATIC=C:/Users/user/Documents/cube_proj/build
+
+//Value Computed by CMake
+cube_IS_TOP_LEVEL:STATIC=ON
+
+//Value Computed by CMake
+cube_SOURCE_DIR:STATIC=C:/Users/user/Documents/cube_proj
 
 //The directory containing a CMake configuration file for glad.
 glad_DIR:PATH=C:/Users/user/Documents/cube_proj/build/vcpkg_installed/x64-windows/share/glad
