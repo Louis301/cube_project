@@ -1,0 +1,1 @@
+Разработка ведётся с применением VS Code, но используется компилятор MSVC (Visual Studio 17 2022) для сборки применяется cmake. Режимы debug и release запуска уже настроены (cmakelists.txt, launch.json, tasks.json во вложении)

@@ -1,0 +1,12 @@
+{
+  "name": "fool-game-project",
+  "version": "0.1.0",
+  "dependencies": [
+    "glfw3",
+    "glad",
+    "glm",
+    "imgui",
+    "assimp"
+  ],
+	"builtin-baseline": "3af1d1e60af2b2abf55760538cd607829029b07a"
+}

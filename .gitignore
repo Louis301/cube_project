@@ -1,6 +1,4 @@
-# =====================
-# 🔨 Сборка (CMake + MSVC)
-# =====================
+# ---------- Сборка (CMake + MSVC)
 build/
 Build/
 out/
@@ -36,17 +34,13 @@ ipch/
 *.opt
 *.plg
 
-# =====================
-# 📦 Зависимости (vcpkg)
-# =====================
+# ---------- Зависимости (vcpkg)
 # Если используете classic mode — vcpkg установлен глобально, ничего не игнорируем
 # Если manifest mode — игнорируем установленные пакеты:
 vcpkg_installed/
 !vcpkg.json
 
-# =====================
-# 🖥️ VS Code
-# =====================
+# ---------- VS Code
 .vscode/*
 !.vscode/tasks.json
 !.vscode/launch.json
@@ -56,28 +50,19 @@ vcpkg_installed/
 .vscode/*.code-workspace
 .vscode/.history/
 
-# =====================
-# 🪟 Windows
-# =====================
+# ---------- Windows
 Thumbs.db
 ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
 *.lnk
-
-# =====================
-# 🔧 Компилятор/линкер
-# =====================
+# ---------- Компилятор/линкер
 *.pch
 *.pdb
 *.idb
 *.iobj
 *.ipdb
-
-# =====================
-# 🧹 Прочее
-# =====================
-# Временные файлы редакторов
+# ---------- Временные файлы редакторов
 *~
 *.swp
 *.swo
@@ -85,21 +70,15 @@ $RECYCLE.BIN/
 *.tmp
 *.temp
 
-# Логи и кэш
+# ---------- Логи и кэш
 *.log
 .cache/
 .DS_Store
 
-# Модели/ресурсы (опционально — если большие)
-# assets/*.m3d
-# assets/textures/*.png
-
-# =====================
-# ✅ Что ОБЯЗАТЕЛЬНО хранить в репозитории:
-# =====================
-# ✔️ src/*.cpp, src/*.h
-# ✔️ CMakeLists.txt
-# ✔️ vcpkg.json (если manifest mode)
-# ✔️ .vscode/tasks.json, launch.json (настройки отладки)
-# ✔️ shaders/, assets/ (если не слишком большие)
-# ✔️ Этот .gitignore 😊
+# ---------- ОБЯЗАТЕЛЬНО  
+# src/*.cpp, src/*.h
+# CMakeLists.txt
+# vcpkg.json (если manifest mode)
+# .vscode/tasks.json, launch.json (настройки отладки)
+# shaders/, assets/ (если не слишком большие)
+# Этот .gitignore

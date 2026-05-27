@@ -15,7 +15,7 @@ struct Vertex {
 class Model {
 public:
     Model(const std::string& path);
-    void Draw(unsigned int shader) const;
+    void Draw() const;
     ~Model();
 
 private:

@@ -17,11 +17,13 @@ find_package(imgui CONFIG REQUIRED)
 find_package(assimp CONFIG REQUIRED)
 
 # Сборка исполняемого файла
-file(GLOB_RECURSE SOURCES "src/*.cpp")
-add_executable(${PROJECT_NAME} ${SOURCES}
-    src/imgui_backends/imgui_impl_glfw.cpp
-    src/imgui_backends/imgui_impl_opengl3_loader.h
-    src/Model.cpp)
+file(GLOB_RECURSE SOURCES 
+  "src/*.cpp"
+  "src/*.h"
+  "src/imgui_backends/*.cpp"
+  "src/imgui_backends/*.h"
+)
+add_executable(${PROJECT_NAME} ${SOURCES})
 
 # Линковка
 target_link_libraries(${PROJECT_NAME} PRIVATE
