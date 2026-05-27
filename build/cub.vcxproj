@@ -422,10 +422,13 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="C:\Users\user\Documents\cube_proj\src\Model.cpp" />
+    <ClInclude Include="C:\Users\user\Documents\cube_proj\src\Model.h" />
     <ClCompile Include="C:\Users\user\Documents\cube_proj\src\imgui_backends\imgui_impl_glfw.cpp" />
+    <ClInclude Include="C:\Users\user\Documents\cube_proj\src\imgui_backends\imgui_impl_glfw.h" />
     <ClCompile Include="C:\Users\user\Documents\cube_proj\src\imgui_backends\imgui_impl_opengl3.cpp" />
-    <ClCompile Include="C:\Users\user\Documents\cube_proj\src\main.cpp" />
+    <ClInclude Include="C:\Users\user\Documents\cube_proj\src\imgui_backends\imgui_impl_opengl3.h" />
     <ClInclude Include="C:\Users\user\Documents\cube_proj\src\imgui_backends\imgui_impl_opengl3_loader.h" />
+    <ClCompile Include="C:\Users\user\Documents\cube_proj\src\main.cpp" />
   </ItemGroup>
   <ItemGroup />
   <ItemGroup>
