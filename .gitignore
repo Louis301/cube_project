@@ -6,33 +6,6 @@ Debug/
 Release/
 RelWithDebInfo/
 MinSizeRel/
-*.sln
-*.suo
-*.user
-*.userosscache
-*.sln.docstates
-*.VC.db
-*.opensdf
-*.opendb
-*.sdf
-*.layout
-*.pidb
-*.pdb
-*.ilk
-*.exp
-*.map
-*.lib
-*.obj
-*.exe
-*.dll
-*.res
-*.tlog
-*.lastbuildstate
-ipch/
-*.aps
-*.ncb
-*.opt
-*.plg
 
 # ---------- Зависимости (vcpkg)
 # Если используете classic mode — vcpkg установлен глобально, ничего не игнорируем
@@ -74,11 +47,3 @@ $RECYCLE.BIN/
 *.log
 .cache/
 .DS_Store
-
-# ---------- ОБЯЗАТЕЛЬНО  
-# src/*.cpp, src/*.h
-# CMakeLists.txt
-# vcpkg.json (если manifest mode)
-# .vscode/tasks.json, launch.json (настройки отладки)
-# shaders/, assets/ (если не слишком большие)
-# Этот .gitignore
