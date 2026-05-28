@@ -1,4 +1,5 @@
-#define IMGUI_IMPL_OPENGL_LOADER_GLAD // Если остался в проекте, можно убрать
+#define IMGUI_IMPL_OPENGL_LOADER_GLAD
+
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
@@ -61,10 +62,6 @@ unsigned int createProgram(const char* v, const char* f) {
     return p;
 }
 
-
-
-
-
 // ==================== КАМЕРА ====================
 struct Camera {
     glm::vec3 target = glm::vec3(0.0f);
@@ -97,17 +94,10 @@ struct InputState {
 };
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
-	// 🔹 Игнорируем прокрутку, если курсор находится над окном ImGui
 	if (ImGui::GetIO().WantCaptureMouse) return;
-
 	auto* state = static_cast<InputState*>(glfwGetWindowUserPointer(window));
 	if (!state) return;
-
-	// yoffset > 0 → прокрутка вверх (приближение)
-	// yoffset < 0 → прокрутка вниз (отдаление)
 	state->cam.distance -= static_cast<float>(yoffset) * 0.5f;
-	
-	// 🔹 Ограничиваем диапазон, чтобы камера не "выворачивалась" и не улетала за модель
 	state->cam.distance = glm::clamp(state->cam.distance, 0.5f, 50.0f);
 }
 
@@ -138,32 +128,19 @@ void cursor_cb(GLFWwindow* window, double xpos, double ypos) {
     }
 }
 
-// 🔥 Функция зума колёсиком мыши
+// Функция зума
 void scroll_cb(GLFWwindow* window, double, double yoffset) {
     // Передаём событие в ImGui
     ImGui_ImplGlfw_ScrollCallback(window, 0.0, yoffset);
-
     auto* state = static_cast<InputState*>(glfwGetWindowUserPointer(window));
     if (!state) return;
-
     // Изменяем дистанцию камеры
     state->cam.distance -= static_cast<float>(yoffset) * 0.5f;
     // Ограничиваем диапазон, чтобы камера не "проваливалась" в модель
     state->cam.distance = glm::clamp(state->cam.distance, 0.5f, 50.0f);
 }
 
-// void scroll_callback(GLFWwindow* window, double, double yoffset) {
-//     auto* state = static_cast<InputState*>(glfwGetWindowUserPointer(window));
-//     state->cam.distance -= static_cast<float>(yoffset) * 0.5f;
-    
-//     // 🔥 ИСПРАВЛЕНИЕ: std::clamp работает надёжнее и не зависит от GLM
-//     state->cam.distance = std::clamp(state->cam.distance, 0.5f, 50.0f);
-    
-//     ImGui_ImplGlfw_ScrollCallback(window, 0.0, yoffset);
-// }
-
-
-// ======================================
+//============================================================
 int main() {
     if (!glfwInit()) return -1;
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -173,50 +150,34 @@ int main() {
     GLFWwindow* window = glfwCreateWindow(1280, 720, "STL Isometric Viewer", nullptr, nullptr);
     if (!window) return -1;
     glfwMakeContextCurrent(window);
-
-		// Важно для glfwGetMouseButton
     glfwSetInputMode(window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) return -1;
 
-
-  // 1. Создаём состояние и привязываем его к окну
 	InputState input;
 	glfwSetWindowUserPointer(window, &input);
 
-  // 2. Регистрируем callback-функции
 	glfwSetCursorPosCallback(window, cursor_cb);
-	glfwSetScrollCallback(window, scroll_cb); // 🔥 Регистрация зума
+	glfwSetScrollCallback(window, scroll_cb);
 
-  // 3. ImGui (install_callbacks=false, так как мы сами обрабатываем ввод)
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 	ImGui::StyleColorsDark();
 	ImGui_ImplGlfw_InitForOpenGL(window, false);
 	ImGui_ImplOpenGL3_Init("#version 330 core");
 
-
     unsigned int shader = createProgram(vertexShaderSource, fragmentShaderSource);
     glUseProgram(shader);
 
-    Model model("assets/model4.stl"); // Положите файл сюда
+    Model model("assets/model4.stl");
 
-
-		glEnable(GL_DEPTH_TEST);
+    glEnable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
 
     while (!glfwWindowShouldClose(window)) {
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-
-        // ImGui::Begin("Controls");
-        // ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
-        // ImGui::SliderFloat("Distance", &input.cam.distance, 0.5f, 20.0f);
-        // if (ImGui::Button("Reset")) {
-        //     input.cam.distance = 4.0f; input.cam.yaw = 45.0f; input.cam.pitch = 20.0f;
-        // }
-        // ImGui::End();
         ImGui::Render();
 
         glClearColor(0.12f, 0.15f, 0.2f, 1.0f);
@@ -231,8 +192,7 @@ int main() {
         glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(modelMat));
         glUniform3fv(glGetUniformLocation(shader, "viewPos"), 1, glm::value_ptr(input.cam.getPos()));
 
-        // model.Draw(shader);
-				       model.Draw();
+        model.Draw();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         glfwSwapBuffers(window);
@@ -242,34 +202,6 @@ int main() {
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
-
-
-    // // Фиксированная изометрическая проекция
-    // glm::mat4 projection = glm::perspective(glm::radians(45.0f), 1280.0f / 720.0f, 0.1f, 100.0f);
-    // glm::mat4 view = glm::lookAt(
-    //     glm::vec3(3.0f, 2.5f, 3.0f), // Позиция камеры (изометрический угол)
-    //     glm::vec3(0.0f, 0.0f, 0.0f), // Центр сцены
-    //     glm::vec3(0.0f, 1.0f, 0.0f)  // Вектор вверх
-    // );
-    // glm::mat4 modelMat = glm::mat4(1.0f);
-
-    // glUniformMatrix4fv(glGetUniformLocation(shader, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-    // glUniformMatrix4fv(glGetUniformLocation(shader, "view"), 1, GL_FALSE, glm::value_ptr(view));
-    // glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(modelMat));
-
-    // glEnable(GL_DEPTH_TEST);
-    // glDisable(GL_CULL_FACE); // STL часто имеет смешанный winding order
-
-    // while (!glfwWindowShouldClose(window)) {
-    //     glClearColor(0.12f, 0.15f, 0.20f, 1.0f);
-    //     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    //     model.Draw();
-
-    //     glfwSwapBuffers(window);
-    //     glfwPollEvents();
-    // }
-
 
     glfwTerminate();
     return 0;
