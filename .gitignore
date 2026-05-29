@@ -8,8 +8,6 @@ RelWithDebInfo/
 MinSizeRel/
 
 # ---------- Зависимости (vcpkg)
-# Если используете classic mode — vcpkg установлен глобально, ничего не игнорируем
-# Если manifest mode — игнорируем установленные пакеты:
 vcpkg_installed/
 !vcpkg.json
 
